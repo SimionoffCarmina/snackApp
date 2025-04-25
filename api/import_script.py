@@ -17,12 +17,12 @@ def get_all_recipes():
             for ingredient in row['Ingredients']:
                 ingredient_matches = ingredient_regex.match(ingredient)
                 try:
-                    quantity_aux = float(ingredient_matches['quantity'])
+                    quantity = float(ingredient_matches['quantity'])
                 except ValueError as exc:
                     print('Could not convert')
-                    quantity_aux = None
+                    quantity = None
                 ingredients.append({
-                    'quantity': quantity_aux,
+                    'quantity': quantity,
                     'unit': unit if (unit := ingredient_matches['unit']) else None,
                     'name': ingredient_matches['name'],
                 })
