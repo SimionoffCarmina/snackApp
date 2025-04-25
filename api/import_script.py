@@ -2,6 +2,7 @@ import csv
 import json
 import re
 
+
 def get_all_recipes():
     ingredient_regex = re.compile(r'^(?P<quantity>\d+)(?P<unit>[a-zA-Z]*) (?P<name>.+)$')
     all_recipes = []
@@ -15,18 +16,19 @@ def get_all_recipes():
             ingredients = []
             for ingredient in row['Ingredients']:
                 ingredient_matches = ingredient_regex.match(ingredient)
-                ingredients.append({
-                    'quantity': ingredient_matches['quantity'],
-                    'unit': unit if (unit := ingredient_matches['unit']) else None,
-                    'name': ingredient_matches['name'],
-                })
+                try:
+                    ingredients.append({
+                        'quantity': float(ingredient_matches['quantity']),
+                        'unit': unit if (unit := ingredient_matches['unit']) else None,
+                        'name': ingredient_matches['name'],
+                    })
+                except ValueError:
+                    print('Could not convert')
             row['Ingredients'] = ingredients
             all_recipes.append(row)
         json.dump(all_recipes, jsonfile)
         return all_recipes
 
 
-
 if __name__ == '__main__':
     recipes = get_all_recipes()
-
