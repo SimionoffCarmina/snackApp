@@ -17,13 +17,15 @@ def get_all_recipes():
             for ingredient in row['Ingredients']:
                 ingredient_matches = ingredient_regex.match(ingredient)
                 try:
-                    ingredients.append({
-                        'quantity': float(ingredient_matches['quantity']),
-                        'unit': unit if (unit := ingredient_matches['unit']) else None,
-                        'name': ingredient_matches['name'],
-                    })
-                except ValueError:
+                    quantity_aux = float(ingredient_matches['quantity'])
+                except ValueError as exc:
                     print('Could not convert')
+                    quantity_aux = None
+                ingredients.append({
+                    'quantity': quantity_aux,
+                    'unit': unit if (unit := ingredient_matches['unit']) else None,
+                    'name': ingredient_matches['name'],
+                })
             row['Ingredients'] = ingredients
             all_recipes.append(row)
         json.dump(all_recipes, jsonfile)
