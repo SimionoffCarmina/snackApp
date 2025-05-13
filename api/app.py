@@ -55,7 +55,8 @@ def create_recipe():
         return jsonify({'message': 'No input data provided'}), 400
 
     categories = []
-    for name in data.get('categories', []):
+    categories_data = data.get('categories', [])
+    for name in categories_data:
         cat = Category.query.filter_by(name=name).first()
         if not cat:
             cat = Category(name=name)
@@ -77,11 +78,10 @@ def create_recipe():
         )
         ingredients.append(ingredient)
 
-
     new_recipe = Recipe(
         name = data.get('name'),
         duration = data.get('duration'),
-        pictures = data.get('pictures'),
+        pictures=','.join(data['pictures']),
         instructions = data.get('instructions'),
         categories = categories,
         ingredients = ingredients
@@ -98,6 +98,64 @@ def create_recipe():
     return "added recipe"
 
 
+@app.route('/api/recipes/<int:recipe_id>', methods=['PUT'])
+def update_recipe(recipe_id):
+    recipe = Recipe.query.get(recipe_id)
+
+    if not recipe:
+        return jsonify({'message': 'Recipe not found'}), 404
+
+    data = request.get_json()
+
+    if data is None:
+        return jsonify({'message': 'No input data provided'}), 400
+
+    categories = []
+    for name in data.get('categories', []):
+        cat = Category.query.filter_by(name=name).first()
+        if not cat:
+            color = CATEGORY_COLORS.get(name, '#808080')
+            cat = Category(name=name, color=color)
+            db.session.add(cat)
+        categories.append(cat)
+
+    for ing in recipe.ingredients:
+        db.session.delete(ing)
+    db.session.flush()
+
+    ingredients = []
+    ingredient_regex = re.compile(r'^(?P<quantity>\d+)(?P<unit>[a-zA-Z]*) (?P<name>.+)$')
+    for ingredient in data.get('ingredients', []):
+        match = ingredient_regex.match(ingredient.strip())
+        if not match:
+            return jsonify({'error': f'Invalid ingredient format: {ingredient}'}), 400
+        ingredient = Ingredient(
+            name=match['name'],
+            unit=match['unit'] or None,
+            quantity=float(match['quantity']),
+            recipe=recipe
+        )
+        ingredients.append(ingredient)
+
+    recipe.name = data.get('name')
+    recipe.duration = data.get('duration')
+    recipe.pictures = data.get('pictures')
+    recipe.instructions = data.get('instructions')
+    recipe.categories = categories
+    recipe.ingredients = ingredients
+
+    db.session.commit()
+
+    return {
+        'id': recipe.id,
+        'name': recipe.name,
+        'duration': recipe.duration,
+        'pictures': recipe.pictures,
+        'instructions': recipe.instructions,
+        'categories': [category.name for category in recipe.categories],
+        'ingredients': [ingredient.name for ingredient in recipe.ingredients],
+    }
+
 @app.route('/api/recipes/<int:recipe_id>', methods=['DELETE'])
 def delete_recipe(recipe_id):
     recipe = Recipe.query.get(recipe_id)
@@ -112,7 +170,6 @@ def delete_recipe(recipe_id):
     db.session.commit()
 
     return jsonify({'message': 'Recipe deleted'}), 200
-
 
 if __name__ == '__main__':
     with app.app_context():
