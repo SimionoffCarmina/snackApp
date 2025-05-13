@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 import re
 
+from models import category
+
 load_dotenv()
 
 from config import Config
@@ -24,31 +26,51 @@ app.config.from_object(Config)
 db.init_app(app)
 
 
-def get_recipe_as_list():
-    recipes = []
-    for recipe in db.session.query(Recipe).all():
-        recipes.append(recipe.as_dict())
-    return recipes
-
-
 @app.route('/')
 def hello_world():
     return 'Welcome to SnackApp!'
 
+def recipe_json(recipe):
+    return {
+        'id': recipe.id,
+        'name': recipe.name,
+        'duration': recipe.duration,
+        'pictures': recipe.pictures.split(',') if recipe.pictures else [],
+        'categories': [
+            {
+                'id': cat.id,
+                'name': cat.name,
+                'color': cat.color
+            } for cat in recipe.categories
+        ],
+        'ingredients': [
+            {
+                'id': ingr.id,
+                'name': ingr.name,
+                'unit': ingr.unit,
+                'quantity': ingr.quantity,
+            } for ingr in recipe.ingredients
+        ]
+    }
+@app.route('/api/recipes/<int:recipe_id>', methods=['GET'])
+def get_recipe(recipe_id):
+    recipe = Recipe.query.get(recipe_id)
+
+    if not recipe:
+        return jsonify({'error': 'Recipe not found'}), 404
+
+    return jsonify(recipe_json(recipe)), 200
+
+def get_recipe_as_list():
+    recipes = []
+    for recipe in db.session.query(Recipe).all():
+        recipes.append(recipe_json(recipe))
+    return recipes
 
 @app.route('/api/recipes', methods=['GET'])
 def get_recipes():
     recipes = get_recipe_as_list()
     return jsonify(recipes)
-
-
-@app.route('/api/recipes/<int:recipe_id>', methods=['GET'])
-def get_recipe(recipe_id):
-    recipes = get_recipe_as_list()
-    for recipe in recipes:
-        if recipe['id'] == recipe_id:
-            return jsonify(recipe)
-    return 'Recipe not found', 404
 
 
 @app.route('/api/recipes', methods=['POST'])
