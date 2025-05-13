@@ -23,11 +23,14 @@ app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
 
+
 def get_recipe_as_list():
     recipes = []
     for recipe in db.session.query(Recipe).all():
         recipes.append(recipe.as_dict())
     return recipes
+
+
 @app.route('/')
 def hello_world():
     return 'Welcome to SnackApp!'
@@ -56,10 +59,20 @@ def create_recipe():
 
     categories = []
     categories_data = data.get('categories', [])
-    for name in categories_data:
+    for category in categories_data:
+        if isinstance(category, str):
+            name = category
+            color = '#808080'
+        elif isinstance(category, dict):
+            name = category['name']
+            color = category.get('color', '#808080')
+        else:
+            return jsonify({'message': 'Invalid format'}), 400
+        if not name:
+            jsonify({'message': 'No name provided'}), 400
         cat = Category.query.filter_by(name=name).first()
         if not cat:
-            cat = Category(name=name)
+            cat = Category(name=name, color=color)
             db.session.add(cat)
         categories.append(cat)
 
@@ -79,12 +92,12 @@ def create_recipe():
         ingredients.append(ingredient)
 
     new_recipe = Recipe(
-        name = data.get('name'),
-        duration = data.get('duration'),
+        name=data.get('name'),
+        duration=data.get('duration'),
         pictures=','.join(data['pictures']),
-        instructions = data.get('instructions'),
-        categories = categories,
-        ingredients = ingredients
+        instructions=data.get('instructions'),
+        categories=categories,
+        ingredients=ingredients
     )
 
     db.session.add(new_recipe)
@@ -95,7 +108,7 @@ def create_recipe():
         db.session.add(ing)
 
     db.session.commit()
-    return "added recipe"
+    return jsonify({'message': 'Created a new recipe'}), 200
 
 
 @app.route('/api/recipes/<int:recipe_id>', methods=['PUT'])
@@ -111,10 +124,11 @@ def update_recipe(recipe_id):
         return jsonify({'message': 'No input data provided'}), 400
 
     categories = []
-    for name in data.get('categories', []):
+    for category in data.get('categories', []):
+        name = category.get('name')
+        color = category.get('color', '#808080')
         cat = Category.query.filter_by(name=name).first()
         if not cat:
-            color = CATEGORY_COLORS.get(name, '#808080')
             cat = Category(name=name, color=color)
             db.session.add(cat)
         categories.append(cat)
@@ -156,6 +170,7 @@ def update_recipe(recipe_id):
         'ingredients': [ingredient.name for ingredient in recipe.ingredients],
     }
 
+
 @app.route('/api/recipes/<int:recipe_id>', methods=['DELETE'])
 def delete_recipe(recipe_id):
     recipe = Recipe.query.get(recipe_id)
@@ -170,6 +185,7 @@ def delete_recipe(recipe_id):
     db.session.commit()
 
     return jsonify({'message': 'Recipe deleted'}), 200
+
 
 if __name__ == '__main__':
     with app.app_context():
