@@ -130,7 +130,7 @@ def create_recipe():
         db.session.add(ing)
 
     db.session.commit()
-    return jsonify({'message': 'Created a new recipe'}), 200
+    return jsonify({'message': 'Created a new recipe'}), 201
 
 
 @app.route('/api/recipes/<int:recipe_id>', methods=['PUT'])
@@ -208,6 +208,41 @@ def delete_recipe(recipe_id):
 
     return jsonify({'message': 'Recipe deleted'}), 200
 
+def category_json(category):
+    return {
+        'id': category.id,
+        'name': category.name,
+        'color': category.color
+    }
+@app.route('/api/categories', methods=['GET'])
+def get_categories():
+    categories = Category.query.all()
+    category_data = []
+    for c in categories:
+        category_data.append(category_json(c))
+    return jsonify({'categories': category_data})
+
+@app.route('/api/addcat', methods=['POST'])
+def add_cat():
+    data = request.get_json()
+    if data is None:
+        return jsonify({'error': 'No input data provided'}), 400
+
+    name = data.get('name')
+    if name is None:
+        return jsonify({'error': 'No name provided'}), 400
+
+    color = data.get('color', '#808080')
+
+    existing = Category.query.filter_by(name=name).first()
+    if existing:
+        return jsonify({'error': f'Category already exists'}), 400
+
+    cat = Category(name=name, color=color)
+    db.session.add(cat)
+    db.session.commit()
+
+    return jsonify({'message': 'Created a new category'}), 201
 
 if __name__ == '__main__':
     with app.app_context():
