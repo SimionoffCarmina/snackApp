@@ -79,6 +79,22 @@ def create_recipe():
     if data is None:
         return jsonify({'message': 'No input data provided'}), 400
 
+    name = data.get('name')
+    if not name  or not isinstance(name, str) or name.strip() == "":
+        return jsonify({'message': 'Name is required'}), 400
+
+    duration = data.get('duration')
+    if not duration or not isinstance(duration, str) or duration.strip() == "":
+        return jsonify({'error': 'Duration must be a non-empty string'}), 400
+
+    pictures = data.get('pictures')
+    if not pictures or not isinstance(pictures, list) or not all(isinstance(pic, str) for pic in pictures):
+        return jsonify({'message': 'Pictures are required as a list of valid URLs'}), 400
+
+    instructions = data.get('instructions')
+    if not instructions or not isinstance(instructions, str) or instructions.strip() == "":
+        return jsonify({'message': 'Instructions are required'}), 400
+
     categories = []
     categories_data = data.get('categories', [])
     for category in categories_data:
@@ -222,6 +238,9 @@ def get_categories():
         category_data.append(category_json(c))
     return jsonify({'categories': category_data})
 
+def is_valid_hex_color(hex_color):
+    hex_color_regex = r'^#[0-9A-Fa-f]{6}$'
+    return re.match(hex_color_regex, hex_color) is not None
 @app.route('/api/addcat', methods=['POST'])
 def add_cat():
     data = request.get_json()
@@ -229,10 +248,12 @@ def add_cat():
         return jsonify({'error': 'No input data provided'}), 400
 
     name = data.get('name')
-    if name is None:
+    if name is None or not isinstance(name, str) or name.strip() == "":
         return jsonify({'error': 'No name provided'}), 400
 
     color = data.get('color', '#808080')
+    if color and not is_valid_hex_color(color):
+        return jsonify({'error': 'Invalid color format'}), 400
 
     existing = Category.query.filter_by(name=name).first()
     if existing:
