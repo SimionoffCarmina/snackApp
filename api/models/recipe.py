@@ -4,6 +4,29 @@ from models.category import Category
 
 
 class Recipe(db.Model):
+    def recipe_json(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'duration': self.duration,
+            'pictures': self.pictures.split(',') if self.pictures else [],
+            'categories': [
+                {
+                    'id': cat.id,
+                    'name': cat.name,
+                    'color': cat.color
+                } for cat in self.categories
+            ],
+            'ingredients': [
+                {
+                    'id': ingr.id,
+                    'name': ingr.name,
+                    'unit': ingr.unit,
+                    'quantity': ingr.quantity,
+                } for ingr in self.ingredients
+            ]
+        }
+
     __tablename__ = 'recipe'
 
     id = db.Column(db.Integer, primary_key=True)

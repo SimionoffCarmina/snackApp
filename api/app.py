@@ -30,28 +30,7 @@ db.init_app(app)
 def hello_world():
     return 'Welcome to SnackApp!'
 
-def recipe_json(recipe):
-    return {
-        'id': recipe.id,
-        'name': recipe.name,
-        'duration': recipe.duration,
-        'pictures': recipe.pictures.split(',') if recipe.pictures else [],
-        'categories': [
-            {
-                'id': cat.id,
-                'name': cat.name,
-                'color': cat.color
-            } for cat in recipe.categories
-        ],
-        'ingredients': [
-            {
-                'id': ingr.id,
-                'name': ingr.name,
-                'unit': ingr.unit,
-                'quantity': ingr.quantity,
-            } for ingr in recipe.ingredients
-        ]
-    }
+
 @app.route('/api/recipes/<int:recipe_id>', methods=['GET'])
 def get_recipe(recipe_id):
     recipe = Recipe.query.get(recipe_id)
@@ -59,13 +38,15 @@ def get_recipe(recipe_id):
     if not recipe:
         return jsonify({'error': 'Recipe not found'}), 404
 
-    return jsonify(recipe_json(recipe)), 200
+    return jsonify(recipe.recipe_json()), 200
+
 
 def get_recipe_as_list():
     recipes = []
     for recipe in db.session.query(Recipe).all():
-        recipes.append(recipe_json(recipe))
+        recipes.append(recipe.recipe_json())
     return recipes
+
 
 @app.route('/api/recipes', methods=['GET'])
 def get_recipes():
@@ -80,7 +61,7 @@ def create_recipe():
         return jsonify({'message': 'No input data provided'}), 400
 
     name = data.get('name')
-    if not name  or not isinstance(name, str) or name.strip() == "":
+    if not name or not isinstance(name, str) or name.strip() == "":
         return jsonify({'message': 'Name is required'}), 400
 
     duration = data.get('duration')
@@ -109,23 +90,18 @@ def create_recipe():
         if not name:
             jsonify({'message': 'No name provided'}), 400
         cat = Category.query.filter_by(name=name).first()
-        if not cat:
-            cat = Category(name=name, color=color)
-            db.session.add(cat)
-        categories.append(cat)
+        if cat:
+            categories.append(cat)
+        else:
+            return jsonify({'message': f'Category {name} doesnt exist'}), 404
 
-    ingredient_regex = re.compile(r'^(?P<quantity>\d+)(?P<unit>[a-zA-Z]*) (?P<name>.+)$')
     ingredients = []
     ingredients_data = data.get('ingredients', [])
     for ingredient_str in ingredients_data:
-        match = ingredient_regex.match(ingredient_str.strip())
-        if not match:
-            return jsonify({'error': f'Invalid ingredient format: {ingredient_str}'}), 400
-
         ingredient = Ingredient(
-            name=match['name'],
-            unit=match['unit'] or None,
-            quantity=float(match['quantity'])
+            name=ingredient_str['name'],
+            unit=ingredient_str['unit'],
+            quantity=ingredient_str['quantity']
         )
         ingredients.append(ingredient)
 
@@ -166,25 +142,21 @@ def update_recipe(recipe_id):
         name = category.get('name')
         color = category.get('color', '#808080')
         cat = Category.query.filter_by(name=name).first()
-        if not cat:
-            cat = Category(name=name, color=color)
-            db.session.add(cat)
-        categories.append(cat)
+        if cat:
+            categories.append(cat)
+        else:
+            return jsonify({'error': f'Category {name} doesnt exist'}), 400
 
     for ing in recipe.ingredients:
         db.session.delete(ing)
     db.session.flush()
 
     ingredients = []
-    ingredient_regex = re.compile(r'^(?P<quantity>\d+)(?P<unit>[a-zA-Z]*) (?P<name>.+)$')
     for ingredient in data.get('ingredients', []):
-        match = ingredient_regex.match(ingredient.strip())
-        if not match:
-            return jsonify({'error': f'Invalid ingredient format: {ingredient}'}), 400
         ingredient = Ingredient(
-            name=match['name'],
-            unit=match['unit'] or None,
-            quantity=float(match['quantity']),
+            name=ingredient['name'],
+            unit=ingredient['unit'],
+            quantity=float(ingredient['quantity']),
             recipe=recipe
         )
         ingredients.append(ingredient)
@@ -192,6 +164,7 @@ def update_recipe(recipe_id):
     recipe.name = data.get('name')
     recipe.duration = data.get('duration')
     recipe.pictures = data.get('pictures')
+    recipe.pictures = ",".join(data.get('pictures', []))
     recipe.instructions = data.get('instructions')
     recipe.categories = categories
     recipe.ingredients = ingredients
@@ -206,7 +179,7 @@ def update_recipe(recipe_id):
         'instructions': recipe.instructions,
         'categories': [category.name for category in recipe.categories],
         'ingredients': [ingredient.name for ingredient in recipe.ingredients],
-    }
+    }, 201
 
 
 @app.route('/api/recipes/<int:recipe_id>', methods=['DELETE'])
@@ -222,26 +195,24 @@ def delete_recipe(recipe_id):
     db.session.delete(recipe)
     db.session.commit()
 
-    return jsonify({'message': 'Recipe deleted'}), 200
+    return jsonify({'message': 'Recipe deleted'}), 204
 
-def category_json(category):
-    return {
-        'id': category.id,
-        'name': category.name,
-        'color': category.color
-    }
+
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
     categories = Category.query.all()
     category_data = []
     for c in categories:
-        category_data.append(category_json(c))
-    return jsonify({'categories': category_data})
+        category_data.append(c.category_json())
+    return jsonify({'categories': category_data}), 200
+
 
 def is_valid_hex_color(hex_color):
     hex_color_regex = r'^#[0-9A-Fa-f]{6}$'
     return re.match(hex_color_regex, hex_color) is not None
-@app.route('/api/addcat', methods=['POST'])
+
+
+@app.route('/api/categories', methods=['POST'])
 def add_cat():
     data = request.get_json()
     if data is None:
@@ -264,6 +235,7 @@ def add_cat():
     db.session.commit()
 
     return jsonify({'message': 'Created a new category'}), 201
+
 
 if __name__ == '__main__':
     with app.app_context():
