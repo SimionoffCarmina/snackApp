@@ -12,6 +12,7 @@ from models.category import Category
 from models.recipe import Recipe
 from models.ingredient import Ingredient
 from models.association import recipe_category
+from import_script import populate_db, get_all_recipes
 
 CATEGORY_COLORS = {
     'Baking': '#FFA500',  # orange
@@ -164,7 +165,6 @@ def update_recipe(recipe_id):
     recipe.name = data.get('name')
     recipe.duration = data.get('duration')
     recipe.pictures = data.get('pictures')
-    recipe.pictures = ",".join(data.get('pictures', []))
     recipe.instructions = data.get('instructions')
     recipe.categories = categories
     recipe.ingredients = ingredients
@@ -238,6 +238,11 @@ def add_cat():
 
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True)
+    # with app.app_context():
+    #     db.drop_all()
+    #     db.create_all()
+    #
+    # # Use the following line if you want to populate the database with sample data
+    # populate_db(get_all_recipes(), app, db)
+
+    app.run(host="0.0.0.0")
